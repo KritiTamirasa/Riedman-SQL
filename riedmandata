@@ -1,13 +1,21 @@
--- Database: riedmandata
-
--- DROP DATABASE IF EXISTS riedmandata;
-
-CREATE DATABASE riedmandata
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'en-US'
-    LC_CTYPE = 'en-US'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;
+CREATE TABLE RentalUnits (
+    Unit NVARCHAR(10),
+    Tags NVARCHAR(100),
+    BD_BA NVARCHAR(10),
+    Tenant NVARCHAR(100),
+    Status NVARCHAR(50),
+    Sqft INT,
+    MarketRent DECIMAL(10,2),
+    Rent DECIMAL(10,2),
+    Deposit DECIMAL(10,2),
+    LeaseFrom DATE,
+    LeaseTo DATE,
+    MoveIn DATE,
+    MoveOut DATE,
+    PastDue DECIMAL(10,2),
+    NSFCount INT,
+    LateCount INT
+);
+INSERT INTO RentalUnits (Unit, Tags, BD_BA, Tenant, Status, Sqft, MarketRent, Rent, Deposit, LeaseFrom, LeaseTo, MoveIn, MoveOut, PastDue, NSFCount, LateCount)
+VALUES
+('61001', '', '1/1.00', 'Madison A. Sanford', 'Notice-Unrented', 640, 955.00, 870.00, 870.00, '2024-04-05', '2025-04-30', '2024-04-05', '2025-04-30', 0.00, 0, 0);
