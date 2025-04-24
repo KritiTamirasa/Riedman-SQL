@@ -1,0 +1,89 @@
+
+CREATE TABLE rent_roll (
+  "Unit"        TEXT,
+  "Tags"        TEXT,
+  "BD/BA"       TEXT,
+  "Tenant"      TEXT,
+  "Status"      TEXT,
+  "Sqft"        TEXT,
+  "Market Rent" TEXT,
+  "Rent"        TEXT,
+  "Deposit"     TEXT,
+  "Lease From"  TEXT,
+  "Lease To"    TEXT,
+  "Move-in"     TEXT,
+  "Move-out"    TEXT,
+  "Past Due"    TEXT,
+  "NSF Count"   TEXT,
+  "Late Count"  TEXT
+);
+
+CREATE OR REPLACE FUNCTION rent_stats(months_out INTEGER)
+  RETURNS TABLE (
+    month        TEXT,
+    unit         TEXT,
+    unit_type    TEXT,
+    square_feet  INTEGER,
+    rent_price   NUMERIC,
+    avg_price    NUMERIC,
+    min_price    NUMERIC,
+    max_price    NUMERIC
+  )
+LANGUAGE SQL
+AS $$
+WITH cleaned AS (
+  -- normalize types & strip commas
+  SELECT
+    "Unit"           AS unit,
+    "BD/BA"          AS unit_type,
+    replace("Sqft", ',', '')::INTEGER    AS square_feet,
+    replace("Rent", ',', '')::NUMERIC    AS rent_price,
+    to_date("Lease From", 'MM/DD/YYYY')  AS lease_from,
+    to_date("Lease To",   'MM/DD/YYYY')  AS lease_to
+  FROM rent_roll
+  WHERE "Unit" NOT LIKE '->%'            -- skip any header rows
+), target AS (
+  SELECT
+    date_trunc('month', current_date)
+      + (months_out * INTERVAL '1 month') AS month_start
+), filtered AS (
+  -- keep only units whose lease spans that month
+  SELECT
+    to_char(t.month_start, 'Mon YYYY') AS month,
+    c.unit,
+    c.unit_type,
+    c.square_feet,
+    c.rent_price
+  FROM cleaned c
+  CROSS JOIN target t
+  WHERE c.lease_from <= (t.month_start + INTERVAL '1 month' - INTERVAL '1 day')
+    AND c.lease_to   >= t.month_start
+), stats AS (
+  -- compute per-month avg/min/max
+  SELECT
+    month,
+    unit,
+    unit_type,
+    square_feet,
+    rent_price,
+    AVG(rent_price) OVER (PARTITION BY month) AS avg_price,
+    MIN(rent_price) OVER (PARTITION BY month) AS min_price,
+    MAX(rent_price) OVER (PARTITION BY month) AS max_price
+  FROM filtered
+)
+SELECT * FROM stats
+ORDER BY month, unit;
+$$;
+
+CALL THE FUNCTIONS: 
+
+--   “Two months out” (i.e. current month + 2):
+SELECT * 
+FROM rent_stats(2);
+
+--   All 18 months (0–17) in one go:
+SELECT
+  gs.months_out,
+  rs.*
+FROM generate_series(0,17) AS gs(months_out)
+CROSS JOIN LATERAL rent_stats(gs.months_out) AS rs;
